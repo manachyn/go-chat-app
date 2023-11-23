@@ -1,0 +1,122 @@
+namespace: go-chat-app
+
+redis:
+  defines: runnable
+  inherits: redis/redis
+  metadata:
+    name: redis
+    description: Redis data store for the chat application
+    icon: >-
+      https://cdn.icon-icons.com/icons2/2415/PNG/512/redis_original_wordmark_logo_icon_146369.png
+  variables:
+    redis_disable_commands:
+      type: string
+      value: FLUSHDB,FLUSHALL,CONFIG
+      description: ''
+    redis_empty_password:
+      type: string
+      value: 'yes'
+      description: ''
+    redis_instance_name:
+      type: string
+      value: master
+      description: ''
+    redis_io_thread:
+      type: string
+      value: '1'
+      description: ''
+    redis_io_threads_do_reads:
+      type: string
+      value: 'yes'
+      description: ''
+    redis_port:
+      type: int
+      value: '6379'
+      description: ''
+
+kayee-chat-http:
+  defines: runnable
+  metadata:
+    name: kayee-chat-http
+    description: HTTP server for the chat application
+    icon: https://emojiapi.dev/api/v1/robot.svg
+  containers:
+    kayee-chat-http:
+      image: env-2534.registry.local/kayee-chat-http:main-5bcc62c
+      build: .
+      dockerfile: Dockerfile.kayee-chat-http
+  services:
+    http-server-port:
+      description: Port for the HTTP server of the chat application
+      container: kayee-chat-http
+      port: $port
+      host-port: $port
+      publish: true
+      protocol: tcp
+  connections: {}
+  variables:
+    port:
+      env: PORT
+      type: int
+      value: 8080
+      description: Port on which the HTTP server starts
+
+kayee-chat-websocket:
+  defines: runnable
+  metadata:
+    name: kayee-chat-websocket
+    description: WebSocket server for the chat application
+    icon: https://emojiapi.dev/api/v1/robot.svg
+  containers:
+    kayee-chat-websocket:
+      image: env-2534.registry.local/kayee-chat-websocket:main-5bcc62c
+      build: .
+      dockerfile: Dockerfile.kayee-chat-websocket
+  services:
+    websocket-service:
+      description: WebSocket server for the chat application
+      container: kayee-chat-websocket
+      port: 8081
+      host-port: 8081
+      publish: true
+      protocol: tcp
+  connections: {}
+  variables: {}
+
+kayee-chat-client:
+  defines: runnable
+  metadata:
+    name: kayee-chat-client
+    description: Frontend React application for the chat service
+    icon: https://emojiapi.dev/api/v1/robot.svg
+  containers:
+    kayee-chat-client:
+      image: env-2534.registry.local/kayee-chat-client:main-5bcc62c
+      build: .
+      dockerfile: Dockerfile.kayee-chat-client
+  services:
+    react-dev-server:
+      description: Development server for the React application
+      container: kayee-chat-client
+      port: 3000
+      host-port: 3000
+      publish: true
+      protocol: tcp
+  connections:
+    chat-http-server:
+      target: go-chat-app/kayee-chat-http
+      service: http-server-port
+  variables:
+    react-app-chat-http-endpoint:
+      env: REACT_APP_CHAT_HTTP_ENDPOINT
+      type: string
+      value: <- connection-hostname("chat-http-server")
+      description: HTTP endpoint for the chat service
+
+stack:
+  defines: group
+  members:
+    - go-chat-app/redis
+    - go-chat-app/kayee-chat-http
+    - go-chat-app/kayee-chat-websocket
+    - go-chat-app/kayee-chat-client
