@@ -1,0 +1,99 @@
+namespace: go-chat-app
+
+redis:
+  defines: runnable
+  inherits: redis/redis
+  metadata:
+    name: redis
+    description: Redis database for data storage and messaging
+    icon: >-
+      https://cdn.icon-icons.com/icons2/2415/PNG/512/redis_original_wordmark_logo_icon_146369.png
+  variables:
+    redis_disable_commands:
+      type: string
+      value: FLUSHDB,FLUSHALL,CONFIG
+      description: ''
+    redis_empty_password:
+      type: string
+      value: 'yes'
+      description: ''
+    redis_instance_name:
+      type: string
+      value: master
+      description: ''
+    redis_io_thread:
+      type: string
+      value: '1'
+      description: ''
+    redis_io_threads_do_reads:
+      type: string
+      value: 'yes'
+      description: ''
+    redis_port:
+      type: int
+      value: '6379'
+      description: ''
+
+frontend:
+  defines: runnable
+  metadata:
+    name: frontend
+    description: React application for the chat interface
+    icon: https://emojiapi.dev/api/v1/robot.svg
+  containers:
+    frontend:
+      image: env-2534.registry.local/frontend:main-5bcc62c
+      build: .
+      dockerfile: Dockerfile.frontend
+  services:
+    react-dev-server:
+      description: Development server for the React application
+      container: frontend
+      port: 3000
+      host-port: 3000
+      publish: true
+      protocol: tcp
+  connections:
+    http-api-connection:
+      target: go-chat-app/http-server
+      service: http-server-port
+  variables:
+    react-app-api-url:
+      env: REACT_APP_API_URL
+      type: string
+      value: <- connection-port("http-api-connection")
+      description: API URL for connecting to the http-server
+
+http-server:
+  defines: runnable
+  metadata:
+    name: http-server
+    description: HTTP server for the chat application
+    icon: https://emojiapi.dev/api/v1/robot.svg
+  containers:
+    http-server:
+      image: env-2534.registry.local/http-server:main-5bcc62c
+      build: .
+      dockerfile: Dockerfile.http-server
+  services:
+    http-server-port:
+      description: Port for incoming HTTP requests
+      container: http-server
+      port: $port
+      host-port: $port
+      publish: true
+      protocol: tcp
+  connections: {}
+  variables:
+    port:
+      env: PORT
+      type: int
+      value: 8080
+      description: Port on which the HTTP server will run
+
+stack:
+  defines: group
+  members:
+    - go-chat-app/redis
+    - go-chat-app/frontend
+    - go-chat-app/http-server
